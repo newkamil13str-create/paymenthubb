@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/callback",
+      "destination": "/api/webhook"
+    }
+  ]
+}
