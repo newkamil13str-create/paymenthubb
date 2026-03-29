@@ -75,6 +75,8 @@ export default function AdminDashboard() {
   const [health, setHealth] = useState<SystemHealth | null>(null)
   const [atlanticProfile, setAtlanticProfile] = useState<any>(null)
   const [autoRefresh, setAutoRefresh] = useState(true)
+    const [isMaintenance, setIsMaintenance] = useState(false)
+  const [updatingMaintenance, setUpdatingMaintenance] = useState(false)
 
   // Check authentication
   useEffect(() => {
@@ -154,6 +156,40 @@ export default function AdminDashboard() {
       console.error('[Kamil] Logout error:', error)
     }
   }
+  
+    // Fungsi Maintenance Mode
+  const toggleMaintenance = async () => {
+    setUpdatingMaintenance(true)
+    try {
+      const res = await fetch('/api/admin/maintenance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !isMaintenance }),
+      })
+      if (res.ok) {
+        setIsMaintenance(!isMaintenance)
+        toast.success(`Maintenance Mode: ${!isMaintenance ? 'AKTIF' : 'OFF'}`)
+      }
+    } catch (e) {
+      toast.error('Gagal update status!')
+    } finally {
+      setUpdatingMaintenance(false)
+    }
+  }
+
+  // Ambil status awal saat dashboard dibuka
+  useEffect(() => {
+    const getStatus = async () => {
+      try {
+        const res = await fetch('/api/admin/maintenance')
+        const data = await res.json()
+        setIsMaintenance(data.isMaintenance)
+      } catch (e) {
+        console.error('Gagal sinkron status maintenance')
+      }
+    }
+    if (isAuthenticated) getStatus()
+  }, [isAuthenticated])
 
   if (checkingAuth || !isAuthenticated) {
     return (
@@ -722,47 +758,52 @@ export default function AdminDashboard() {
                 <CardDescription>Configure your platform settings</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Auto Refresh</p>
-                      <p className="text-sm text-muted-foreground">Automatically update dashboard data</p>
-                    </div>
-                  </div>
-                  <Button
-                    variant={autoRefresh ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setAutoRefresh(!autoRefresh)}
-                  >
-                    {autoRefresh ? 'Enabled' : 'Disabled'}
-                  </Button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Notifications</p>
-                      <p className="text-sm text-muted-foreground">Receive alerts for transactions</p>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    Configure
-                  </Button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Report Schedule</p>
-                      <p className="text-sm text-muted-foreground">Automated daily/weekly reports</p>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    Configure
-                  </Button>
-                </div>
-              </CardContent>
+  {/* FITUR MAINTENANCE MODE (BARU) */}
+  <div className="flex items-center justify-between border-b pb-4">
+    <div className="flex items-center gap-2">
+      <Shield className={`h-5 w-5 ${isMaintenance ? 'text-red-500' : 'text-muted-foreground'}`} />
+      <div>
+        <p className="font-medium text-sm md:text-base">Maintenance Mode</p>
+        <p className="text-xs text-muted-foreground italic">
+          {isMaintenance ? '⚠️ Webhook sedang dimatikan' : '✅ Webhook aktif normal'}
+        </p>
+      </div>
+    </div>
+    <Button 
+      variant={isMaintenance ? "destructive" : "outline"} 
+      size="sm"
+      className="h-8 text-xs"
+      disabled={updatingMaintenance}
+      onClick={toggleMaintenance}
+    >
+      {updatingMaintenance ? (
+        <RefreshCw className="h-3 w-3 animate-spin mr-1" />
+      ) : (
+        <AlertCircle className="h-3 w-3 mr-1" />
+      )}
+      {isMaintenance ? 'Matikan' : 'Aktifkan'}
+    </Button>
+  </div>
+
+  {/* FITUR AUTO REFRESH (YANG ASLI) */}
+  <div className="flex items-center justify-between pt-2">
+    <div className="flex items-center gap-2">
+      <Activity className="h-5 w-5 text-muted-foreground" />
+      <div>
+        <p className="font-medium text-sm md:text-base">Auto Refresh</p>
+        <p className="text-xs text-muted-foreground">Update data tiap 5 detik</p>
+      </div>
+    </div>
+    <Button
+      variant={autoRefresh ? "default" : "outline"}
+      size="sm"
+      className="h-8 text-xs"
+      onClick={() => setAutoRefresh(!autoRefresh)}
+    >
+      {autoRefresh ? 'Enabled' : 'Disabled'}
+    </Button>
+  </div>
+ </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
